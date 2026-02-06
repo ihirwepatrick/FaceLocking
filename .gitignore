@@ -1,0 +1,9 @@
+venv/
+.venv/
+models/
+data/
+__pycache__/
+*.pyc
+.DS_Store
+config.bat
+node_modules

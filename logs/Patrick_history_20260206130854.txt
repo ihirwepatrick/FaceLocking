@@ -1,0 +1,4 @@
+2026-02-06 13:08:50.096472 - FACE_LOCKED: Face locked: Patrick
+2026-02-06 13:08:52.074729 - SMILE: Smile detected (ratio: 56.25)
+2026-02-06 13:08:52.188611 - HEAD_RIGHT: Moved right by 12.9px
+2026-02-06 13:08:52.317628 - HEAD_RIGHT: Moved right by 11.8px
