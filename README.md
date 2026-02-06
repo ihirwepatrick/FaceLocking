@@ -14,138 +14,101 @@ A real-time face recognition system with face locking capabilities, designed to 
   - Detect smiles and facial expressions
   - Automatic action logging with timestamps
 
-## Setup
+## Quick Start
 
-**Python version:** Use **Python 3.10, 3.11, 3.12, or 3.13**. Python 3.14 is not yet supported (e.g. `onnxruntime` has no wheels for 3.14).
+### 1. Setup Environment
+```bash
+# Create virtual environment (recommended for isolation)
+python -m venv .venv
 
-1. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-   
-   **Note for GPU acceleration:** The requirements include `onnxruntime-gpu` for NVIDIA GPU support. If you prefer CPU-only, you can replace it with `onnxruntime` in `requirements.txt`.
+# Activate virtual environment
+.venv\Scripts\activate
 
-2. **Models**:
-   Ensure the following models are in the `models/` directory:
-   - `embedder_arcface.onnx` (ArcFace recognition)
-   - `face_landmarker.task` (MediaPipe FaceMesh)
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 2. Download Models
+The system requires two models in the `models/` directory:
+- `embedder_arcface.onnx` - Face recognition model
+- `face_landmarker.task` - Facial landmark detection
+
+Download links:
+- **ArcFace**: [HuggingFace](https://huggingface.co/garavv/arcface-onnx/resolve/main/arc.onnx) (rename to `embedder_arcface.onnx`)
+- **FaceMesh**: [Google Storage](https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task)
+
+### 3. Initialize Project
+```bash
+python init_project.py
+```
 
 ## Usage
 
-### 1. Enrollment
-Enroll new identities by capturing face samples from the camera.
+### Enroll New Faces
+Capture face samples and add them to the database:
 ```bash
 python -m src.enroll
 ```
-- **Controls**:
-  - `SPACE`: Capture a single sample.
-  - `a`: Toggle auto-capture.
-  - `s`: Save enrollment to database.
-  - `q`: Quit.
+**Controls**: `SPACE` = capture | `a` = auto-capture | `s` = save | `q` = quit
 
-**Rebuilding Database from Existing Crops:**
-If you have enrollment crops in `data/enroll/` but the database is missing or outdated, you can rebuild it:
-```bash
-python -m src.rebuild_db
-```
-This scans all person folders in `data/enroll/`, re-embeds their crops, and rebuilds the database. Useful if multiple people were enrolled but only some are in the database.
-
-### 2. Recognition
-Run real-time multi-face recognition with face locking and action tracking.
+### Run Face Recognition
+Start real-time face recognition with tracking:
 ```bash
 python -m src.recognize
 ```
+**Controls**: `l` = lock face | `+/-` = adjust threshold | `r` = reload DB | `d` = debug | `q` = quit
 
-**Execution Provider Selection:**
-On startup, you'll be prompted to choose CPU or GPU acceleration:
-- **GPU (DirectML)**: **Recommended** - Works with AMD/NVIDIA/Intel GPUs on Windows, no CUDA version conflicts
-- **GPU (CUDA)**: Fastest for NVIDIA GPUs (requires CUDA 12.x - may have version conflicts)
-- **CPU**: Compatible everywhere, slower but more stable
+### Rebuild Database
+Rebuild the face database from existing enrollment crops:
+```bash
+python -m src.rebuild_db
+```
 
-**Note:** If you see CUDA errors about missing DLLs (e.g., `cublasLt64_12.dll`), use DirectML instead. It works with your GPU without CUDA version issues.
-
-**Camera Resolution:**
-With GPU acceleration, the system uses 1280x720 by default (configurable in code). Higher resolution improves face detection quality. The GPU can handle 1920x1080 if your camera supports it.
-
-**Controls**:
-  - `+/-`: Adjust distance threshold live (default: 0.40, lower = stricter).
-  - `r`: Reload database from disk.
-  - `d`: Toggle debug overlay.
-  - `l`: Lock/unlock the currently recognized face.
-  - `q`: Quit.
-
-**Accuracy Tips:**
-- The system uses temporal smoothing (averaging recent embeddings) for more stable recognition.
-- If faces aren't recognized, try increasing the threshold with `+` key.
-- If you get false positives, decrease the threshold with `-` key.
-- Default threshold (0.40) balances accuracy and recall - adjust based on your needs.
-
-#### Face Locking Features
-- Lock onto a specific person by pressing `l` when their face is detected
-- The system will track the locked face and log their actions
-- Actions include:
-  - Head movements (left/right)
-  - Smile detection
-  - Face locking/unlocking events
-- All actions are timestamped and saved to `logs/[Name]_history_[timestamp].txt`
-
-### 3. Evaluation
-Evaluate the model's performance on enrolled crops and find the optimal threshold.
+### Evaluate Performance
+Test recognition accuracy and find optimal threshold:
 ```bash
 python -m src.evaluate
 ```
 
-### 4. Demos
-Visualize embeddings or detection/landmarks:
-```bash
-python -m src.embed    # Embedding heatmap visualization
-python -m src.haar_5pt  # Detection and landmark visualization
+## Face Locking Features
+
+When you press `l` during recognition:
+- **Locks onto** the currently recognized person
+- **Tracks** their movements even with multiple people
+- **Detects actions**:
+  - Head movements (left/right)
+  - Smile detection
+  - Face lock/unlock events
+- **Logs everything** to `logs/[Name]_history_[timestamp].txt`
+
+**Example log entries**:
+```
+2026-01-31 13:20:11.324267 - FACE_LOCKED: Face locked: Patrick
+2026-01-31 13:20:20.225528 - HEAD_RIGHT: Moved right by 31.9px
+2026-01-31 13:20:21.684933 - SMILE: Smile detected (ratio: 14.97)
 ```
 
-## Face Locking System
+## Tips
 
-### How Face Locking Works
-1. **Activation**: 
-   - Press 'l' when a recognized face is on screen
-   - The system will lock onto the closest recognized face
-   - A visual indicator (orange border) shows the locked face
+**Recognition Accuracy**:
+- Use `+` key to increase threshold if faces aren't recognized
+- Use `-` key to decrease threshold if getting false positives
+- Default threshold (0.40) works well for most cases
+- System uses temporal smoothing for stable recognition
 
-2. **Tracking**:
-   - The system continues to track the locked face even if other faces appear
-   - If the face is temporarily lost, the system will try to reacquire it for 2 seconds
-   - The lock is automatically released if the face is not found after this period
+**Face Enrollment**:
+- Capture 10-20 samples per person
+- Vary expressions and angles slightly
+- Ensure good, stable lighting
+- Use `a` for auto-capture mode
 
-3. **Actions Detected**:
-   - **Head Movements**:
-     - Left/Right: Tracks horizontal head rotation
-     - Movement threshold: 10 pixels (adjustable)
-   - **Facial Expressions**:
-     - Smile detection: Measures mouth corner movement
-     - Smile threshold: Ratio > 1.1 (configurable)
-   - **System Events**:
-     - Face locked/unlocked
-     - Face lost/regained
+**Removing Faces**:
+1. Delete the person's folder from `data/enroll/[Name]`
+2. Run `python -m src.rebuild_db`
 
-### History Files
-- **Location**: All logs are saved in the `logs/` directory
-- **Naming Convention**: `[Name]_history_[timestamp].txt`
-  - Example: `Bahati_history_20260131132049.txt`
-- **Log Format**:
-  ```
-  [YYYY-MM-DD HH:MM:SS.microseconds] - ACTION_TYPE: Description
-  ```
-- **Example Entries**:
-  ```
-  2026-01-31 13:20:11.324267 - FACE_LOCKED: Face locked: Bahati
-  2026-01-31 13:20:20.225528 - HEAD_RIGHT: Moved right by 31.9px
-  2026-01-31 13:20:21.684933 - SMILE: Smile detected (ratio: 14.97)
-  ```
-- **Log Management**:
-  - New log file created for each recognition session
-  - Timestamp in filename helps track different usage sessions
-  - Logs are automatically created when face locking is used
-
-### Technical Details
-- **Face Recognition**: Uses ArcFace for generating unique face embeddings
-- **Landmark Tracking**: MediaPipe FaceMesh tracks 5 key facial points
-- **Performance**: Optimized for real-time processing on CPU
+## Technical Details
+- **Face Recognition**: ArcFace embeddings (512-dimensional)
+- **Face Detection**: Haar Cascade + MediaPipe FaceMesh
+- **Landmark Tracking**: 5-point facial landmarks
+- **Performance**: Optimized for CPU, runs at 15-30 FPS
+- **Python**: Compatible with 3.10, 3.11, 3.12, 3.13
